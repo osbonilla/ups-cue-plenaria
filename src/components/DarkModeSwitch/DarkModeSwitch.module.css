@@ -1,0 +1,5 @@
+  .label-wrapper {
+    display: flex;
+    border: 1px solid var(--calcite-color-border-1);
+    cursor: pointer;
+  }

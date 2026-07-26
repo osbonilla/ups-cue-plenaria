@@ -1,0 +1,40 @@
+.container {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-inline: 0.75rem;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+}
+
+.item {
+  border: none;
+  background: transparent;
+  color: var(--calcite-color-text-2);
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 0.25rem 0;
+}
+
+.item:hover {
+  color: var(--calcite-color-brand);
+}
+
+.item:focus {
+  color: var(--calcite-color-text-2);
+}
+
+.selected {
+  color: var(--calcite-color-brand) !important;
+}
+
+.separator {
+  color: var(--calcite-color-text-3);
+  user-select: none;
+}

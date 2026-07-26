@@ -1,0 +1,111 @@
+.slidesContainer {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+  justify-content: left;
+  padding: 20px;
+  overflow-x: auto;
+}
+
+.slide {
+  cursor: pointer;
+  position: relative;
+  display: inline-block;
+}
+
+.deleteButton {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 1);
+  background: rgba(200, 0, 0, 0.85);
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+.slide:hover .deleteButton {
+  display: flex;
+}
+
+.deleteButton:hover {
+  background: rgba(220, 0, 0, 1);
+  transform: scale(1.1);
+}
+
+.active {
+  box-shadow: 0px 0px 12px 5px white;
+}
+
+.circleImage {
+  width: 60px; /* Adjust the size as needed */
+  height: 60px; /* Adjust the size as needed */
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid rgba(255, 255, 255, 1);
+  transition: transform 0.3s ease-in-out;
+}
+.circleImage:hover {
+  transform: scale(1.2);
+}
+
+.addSlideButton {
+  width: 66px;
+  height: 66px;
+  min-width: 66px;
+  min-height: 66px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  padding: 0;
+  border: 3px solid rgba(255, 255, 255, 1);
+  box-sizing: border-box;
+  appearance: none;
+  background: rgba(0, 0, 0, 0.3);
+  color: white;
+  cursor: pointer;
+  font-size: 44px;
+  font-weight: 700;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s ease-in-out;
+}
+
+.addSlideButton:hover {
+  transform: scale(1.2);
+}
+
+@media (max-width: 1100px) {
+  .slidesContainer {
+    justify-content: unset;
+    overflow: auto;
+  }
+
+  .circleImage {
+    width: 50px;
+    height: 50px;
+  }
+
+  .addSlideButton {
+    width: 56px;
+    height: 56px;
+    min-width: 56px;
+    min-height: 56px;
+    font-size: 34px;
+  }
+}

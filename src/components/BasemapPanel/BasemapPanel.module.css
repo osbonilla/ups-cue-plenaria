@@ -1,0 +1,22 @@
+.container {
+  width: 300px;
+}
+
+.panel {
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow);
+  overflow: hidden;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+
+.galleryContainer {
+  max-height: min(60vh, 520px);
+  overflow-y: auto;
+  display: block;
+  width: 100%;
+}

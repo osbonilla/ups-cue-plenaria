@@ -1,0 +1,82 @@
+.container {
+  width: 350px;
+  max-height: calc(60vh - 8rem);
+}
+
+.panel {
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow);
+  overflow: hidden;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid var(--calcite-color-border-3);
+}
+
+.section:last-child {
+  border-bottom: none;
+}
+
+.sectionTitle {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--calcite-color-text-2);
+  background: var(--calcite-color-foreground-2);
+}
+
+.sectionBody {
+  padding: 0.5rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.viewshedActions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.button {
+  flex: 1 1 auto;
+  appearance: none;
+  border: 1px solid var(--calcite-color-border-2);
+  background: var(--calcite-color-foreground-1);
+  color: var(--calcite-color-text-1);
+  padding: 0.4rem 0.6rem;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.button:hover:not(:disabled) {
+  background: var(--calcite-color-foreground-2);
+  border-color: var(--calcite-color-brand);
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.hint {
+  font-size: 0.72rem;
+  color: var(--calcite-color-text-3);
+}
+
+.orientedImagery {
+  width: 100%;
+  height: 320px;
+}

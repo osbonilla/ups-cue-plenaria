@@ -1,0 +1,64 @@
+.container {
+  min-width: 170px;
+  max-height: calc(100vh - 8rem);
+}
+
+.panel {
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow);
+  overflow: hidden;
+}
+
+.pickerRow {
+  --slider-height: 8rem;
+  --slider-scale: 1.28;
+  --effective-slider-height: calc(var(--slider-height) * var(--slider-scale));
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: 1rem;
+  padding: 0.75rem;
+}
+
+.slider {
+  direction: rtl;
+  writing-mode: vertical-lr; 
+  direction: rtl;
+  width: 1.4rem;
+  height: var(--slider-height);
+  margin: 0;
+  touch-action: pan-y;
+  accent-color: var(--calcite-color-brand);
+  transform: scale(var(--slider-scale));
+  transform-origin: top;
+}
+
+.labels {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: space-between;
+  height: var(--effective-slider-height);
+  align-items: right;
+}
+
+.label {
+  font-size: 1rem;
+  color: var(--calcite-color-text-2);
+  text-align: left;
+  white-space: nowrap;
+  line-height: 1.2;
+  padding: 0.2rem 0;
+  user-select: none;
+  transition: font-size 120ms ease, color 120ms ease, font-weight 120ms ease;
+}
+
+.selectedLabel {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--calcite-color-brand);
+}
+
+.label:hover,
+.slider:hover {
+  cursor: pointer;
+}

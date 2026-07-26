@@ -1,0 +1,72 @@
+.container {
+  width: 270px;
+  max-height: calc(100vh - 8rem);
+}
+
+.panel {
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow);
+  overflow: hidden;
+}
+
+.listContainer {
+  max-height: min(65vh, 34rem);
+  height: min(65vh, 34rem);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.contentLayout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.searchRow {
+  display: flex;
+  align-items: center;
+  flex: 0 0 3.25rem;
+  height: 3.25rem;
+  overflow: hidden;
+  padding: 0 0.75rem;
+}
+
+.searchInput {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--calcite-color-border-2);
+  background: var(--calcite-color-foreground-1);
+  color: var(--calcite-color-text-1);
+  font: inherit;
+}
+
+.listScrollArea {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.searchInput::placeholder {
+  color: var(--calcite-color-text-3);
+}
+
+.searchInput:focus {
+  outline: 2px solid var(--calcite-color-brand);
+  outline-offset: 2px;
+}
+
+.status {
+  padding: 0.75rem;
+  color: var(--calcite-color-text-2);
+  font-size: 0.9rem;
+}
+
+.groupLegendIcon {
+  width: 1rem;
+  height: 1rem;
+  object-fit: contain;
+  display: inline-block;
+}

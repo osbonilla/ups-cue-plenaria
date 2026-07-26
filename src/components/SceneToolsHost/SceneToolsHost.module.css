@@ -1,0 +1,48 @@
+.container {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.topLeft {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.75rem;
+  pointer-events: none;
+}
+
+.assets {
+  pointer-events: auto;
+}
+
+.floors {
+  pointer-events: auto;
+}
+
+.topRight {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: flex-end;
+  pointer-events: none;
+}
+
+.analysis {
+  pointer-events: auto;
+}
+
+.imagery {
+  pointer-events: auto;
+}
+
+.basemap {
+  pointer-events: auto;
+}

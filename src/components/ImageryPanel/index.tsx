@@ -1,84 +1,185 @@
 import React, { useEffect, useRef, useState } from "react";
 import { observer } from "mobx-react-lite";
-import type OrientedImageryLayer from "@arcgis/core/layers/OrientedImageryLayer";
+import { Viewer } from "mapillary-js";
+import "mapillary-js/dist/mapillary.css";
+import * as webMercatorUtils from "@arcgis/core/geometry/support/webMercatorUtils";
 import state from "../../stores/state";
+import * as appConfig from "../../config";
 import styles from "./ImageryPanel.module.css";
 
 import "@esri/calcite-components/components/calcite-panel";
-import "@arcgis/map-components/components/arcgis-oriented-imagery-viewer";
+
+// ============================================================================
+// Panel IMAGERY — visor oficial de Mapillary (MapillaryJS) embebido.
+// La beta de Living Atlas se queda solo como capa de COBERTURA (guía verde en
+// la escena); la imagen se resuelve directo contra Mapillary: clic en la
+// escena → Graph API busca la imagen más cercana → viewer.moveTo(id).
+// Requiere un Client Token gratuito de Mapillary en config.ts:
+//   export const mapillaryConfig = { accessToken: "MLY|...|..." };
+// (se lee de forma defensiva: la app compila y avisa aunque falte)
+// ============================================================================
+const MAPILLARY_TOKEN = String(
+  (appConfig as any).mapillaryConfig?.accessToken ?? "",
+).trim();
+
+type PanelStatus =
+  | "sin-token"
+  | "listo"
+  | "buscando"
+  | "mostrando"
+  | "sin-imagenes"
+  | "error";
+
+const STATUS_TEXT: Record<PanelStatus, string | null> = {
+  "sin-token":
+    "Falta el token de Mapillary: agrega mapillaryConfig.accessToken en config.ts (gratuito en mapillary.com/dashboard/developers).",
+  listo: "Haz clic sobre una calle con cobertura (verde) para cargar la imagen.",
+  buscando: "Buscando la imagen más cercana…",
+  mostrando: null,
+  "sin-imagenes":
+    "No hay imágenes de Mapillary cerca de ese punto; intenta sobre las líneas verdes.",
+  error: "No se pudo cargar esa imagen; intenta otro punto cercano.",
+};
 
 interface ImageryPanelProps {
   sceneId?: string;
 }
 
-const ORIENTED_IMAGERY_LAYER_TITLE = "Stadium survey images pavco public";
-
-const normalizeTitle = (title: string | undefined | null) =>
-  (title ?? "").trim().toLowerCase();
-
-const findOrientedImageryLayer = (view: any): OrientedImageryLayer | null => {
-  const layers = view?.map?.allLayers?.toArray?.() ?? [];
-  return (
-    layers.find(
-      (layer: any) =>
-        layer?.layerType === "OrientedImageryLayer" ||
-        layer?.type === "oriented-imagery" ||
-        normalizeTitle(layer?.title) === normalizeTitle(ORIENTED_IMAGERY_LAYER_TITLE),
-    ) ?? null
-  );
-};
-
 export const ImageryPanel: React.FC<ImageryPanelProps> = observer(({ sceneId = "main-scene" }) => {
   const sceneView = state.getView("scene");
-  const sceneLoaded = state.viewLoadedById.scene;
-  const viewerRef = useRef<HTMLArcgisOrientedImageryViewerElement | null>(null);
-  const [layer, setLayer] = useState<OrientedImageryLayer | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const viewerRef = useRef<any | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [status, setStatus] = useState<PanelStatus>(MAPILLARY_TOKEN ? "listo" : "sin-token");
+  const [lastClick, setLastClick] = useState<{ lon: number; lat: number } | null>(null);
 
+  // Crear/destruir el visor MapillaryJS (a prueba de StrictMode).
   useEffect(() => {
-    if (!sceneLoaded || !sceneView) return;
+    if (!MAPILLARY_TOKEN || !containerRef.current) {
+      return;
+    }
 
-    const updateLayer = () => {
-      setLayer(findOrientedImageryLayer(sceneView));
-    };
-
-    updateLayer();
-
-    const allLayers = sceneView?.map?.allLayers;
-    const handle = allLayers?.on?.("change", updateLayer) ?? null;
+    const viewer = new Viewer({
+      accessToken: MAPILLARY_TOKEN,
+      container: containerRef.current,
+      component: { cover: false },
+    });
+    viewerRef.current = viewer;
 
     return () => {
-      handle?.remove?.();
-    };
-  }, [sceneLoaded, sceneView]);
-
-  useEffect(() => {
-    const viewer = viewerRef.current;
-    if (!viewer) return;
-    (viewer as any).layer = layer ?? null;
-  }, [layer]);
-
-  useEffect(() => {
-    const viewer = viewerRef.current as any;
-    if (!viewer) return;
-
-    const hideTitle = () => {
-      const widget = viewer.widget;
-      if (widget?.visibleElements) {
-        widget.visibleElements.title = false;
+      viewerRef.current = null;
+      try {
+        viewer.remove();
+      } catch {
+        // El visor puede estar ya liberado durante el desmontaje.
       }
-    };
-
-    hideTitle();
-    viewer.addEventListener?.("arcgisReady", hideTitle);
-    return () => {
-      viewer.removeEventListener?.("arcgisReady", hideTitle);
     };
   }, []);
 
+  // MapillaryJS necesita recalcular su canvas cuando cambia el tamaño del panel.
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      try {
+        viewerRef.current?.resize();
+      } catch {
+        // Sin visor activo no hay nada que redimensionar.
+      }
+    }, 250);
+
+    return () => window.clearTimeout(timeout);
+  }, [isExpanded]);
+
+  // Imagen más cercana vía Graph API, con dos radios (~35 m y ~130 m).
+  const findNearestImageId = async (lon: number, lat: number) => {
+    for (const delta of [0.0003, 0.0012]) {
+      try {
+        const bbox = `${lon - delta},${lat - delta},${lon + delta},${lat + delta}`;
+        const url =
+          `https://graph.mapillary.com/images?access_token=${encodeURIComponent(MAPILLARY_TOKEN)}` +
+          `&fields=id&limit=1&bbox=${bbox}`;
+        const response = await fetch(url);
+        if (!response.ok) {
+          continue;
+        }
+        const json = await response.json();
+        const imageId = json?.data?.[0]?.id;
+        if (imageId) {
+          return String(imageId);
+        }
+      } catch {
+        // Reintenta con el siguiente radio.
+      }
+    }
+
+    return null;
+  };
+
+  const showNearestImage = async (event: any) => {
+    const point = event?.mapPoint;
+    if (!point) {
+      return;
+    }
+
+    let lon = point.longitude;
+    let lat = point.latitude;
+
+    if (
+      (!Number.isFinite(lon) || !Number.isFinite(lat)) &&
+      Number.isFinite(point.x) &&
+      Number.isFinite(point.y)
+    ) {
+      const [lng, la] = webMercatorUtils.xyToLngLat(point.x, point.y);
+      lon = lng;
+      lat = la;
+    }
+
+    if (!Number.isFinite(lon) || !Number.isFinite(lat)) {
+      return;
+    }
+
+    setLastClick({ lon, lat });
+
+    if (!MAPILLARY_TOKEN || !viewerRef.current) {
+      return;
+    }
+
+    setStatus("buscando");
+    const imageId = await findNearestImageId(lon, lat);
+
+    if (!imageId) {
+      setStatus("sin-imagenes");
+      return;
+    }
+
+    try {
+      await viewerRef.current.moveTo(imageId);
+      setStatus("mostrando");
+    } catch (error) {
+      console.warn("[Imagery] MapillaryJS no pudo mostrar la imagen", imageId, error);
+      setStatus("error");
+    }
+  };
+
+  // Clic en la escena → cargar imagen (no bloquea otros handlers del clic).
+  useEffect(() => {
+    if (!sceneView) {
+      return;
+    }
+
+    const clickHandle = sceneView.on("click", (event: any) => {
+      void showNearestImage(event);
+    });
+
+    return () => {
+      clickHandle?.remove?.();
+    };
+  }, [sceneView]);
+
+  const statusText = STATUS_TEXT[status];
+
   return (
     <div className={`${styles.container} ${isExpanded ? styles.expanded : ""}`}>
-      <calcite-panel className={styles.panel} heading="Oriented Imagery">
+      <calcite-panel className={styles.panel} heading="Imágenes a nivel de calle">
         <div className={styles.body}>
           <div className={styles.toolbar}>
             <button
@@ -86,16 +187,14 @@ export const ImageryPanel: React.FC<ImageryPanelProps> = observer(({ sceneId = "
               className={styles.expandButton}
               onClick={() => setIsExpanded((current) => !current)}
               aria-pressed={isExpanded}
-              aria-label={isExpanded ? "Shrink oriented imagery" : "Expand oriented imagery"}
+              aria-label={isExpanded ? "Reducir visor de imágenes" : "Ampliar visor de imágenes"}
             >
-              {isExpanded ? "Shrink" : "Expand"}
+              {isExpanded ? "Reducir" : "Ampliar"}
             </button>
           </div>
-          <arcgis-oriented-imagery-viewer
-            ref={viewerRef}
-            reference-element={sceneId}
-            className={styles.orientedImagery}
-          ></arcgis-oriented-imagery-viewer>
+          <div ref={containerRef} className={styles.orientedImagery}></div>
+          {statusText ? <div className={styles.statusLine}>{statusText}</div> : null}
+          
         </div>
       </calcite-panel>
     </div>

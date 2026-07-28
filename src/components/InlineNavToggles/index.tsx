@@ -2,6 +2,7 @@ import React from "react";
 import { observer } from "mobx-react-lite";
 import styles from "./InlineNavToggles.module.css";
 import navigationState from "../../stores/navigation";
+import { secondarySceneConfig } from "../../config";
 
 interface InlineNavTogglesProps {
   slot?: string;
@@ -89,6 +90,17 @@ export const InlineNavToggles: React.FC<InlineNavTogglesProps> = observer(({ slo
         aria-pressed={toggles.imagery}
       >
         IMAGERY
+      </button>
+      <span className={styles.separator} aria-hidden="true">
+        |
+      </span>
+      <button
+        type="button"
+        className={`${styles.item} ${toggles.scene2 ? styles.selected : ""}`}
+        onClick={() => navigationState.toggle("scene2")}
+        aria-pressed={toggles.scene2}
+      >
+        {secondarySceneConfig.label}
       </button>
       <span className={styles.separator} aria-hidden="true">
         |

@@ -19,6 +19,7 @@ interface AssetsPanelProps {
 
 interface AssetItem {
   objectId: number;
+  name: string;
   fireAsset: string;
   floorLevel: string;
   levelId: string;
@@ -36,6 +37,7 @@ const ASSET_LAYER_URL = assetLayerConfig.serviceUrl;
 const ASSET_LAYER_TITLE = assetLayerConfig.title;
 const ASSET_LAYER_ITEM_ID = assetLayerConfig.itemId;
 const ASSET_LEVEL_FIELD = assetLayerConfig.fields.levelId;
+const ASSET_NAME_FIELD = assetLayerConfig.fields.nameField ?? "";
 const ASSET_TYPE_FIELD = assetLayerConfig.fields.assetType;
 const ASSET_FLOOR_LABEL_FIELD = assetLayerConfig.fields.floorLabel;
 const ASSET_CARDINAL_FIELD = assetLayerConfig.fields.cardinal;
@@ -49,6 +51,41 @@ const LEGEND_MAP: Record<string, string> = {
   "Hose Cabinet": "./assets/icons/hose-cabinet-new.png",
   "Fire Depart./Hose Connect.": "./assets/icons/fire-dept-hose-conne.png",
   "PIV Shut Off": "./assets/icons/piv-shutoff.png"
+};
+
+// --- Simbología tomada del renderer real del Feature Layer ---
+// El servicio publica un Unique Value Renderer sobre category_type con
+// símbolos de imagen: extraemos la URL (o data-URI) de cada símbolo para
+// usarla como ícono de grupo en el panel. Soporta también el renderer ya
+// convertido a point-3d (lo hace SceneToolsHost al activar Pisos) y
+// simple-marker (se dibuja un círculo SVG del color del símbolo).
+const getSymbolIconUrl = (symbol: any): string | null => {
+  if (!symbol) {
+    return null;
+  }
+
+  if (symbol.type === "picture-marker" && symbol.url) {
+    return String(symbol.url);
+  }
+
+  if (symbol.type === "point-3d") {
+    const symbolLayers = symbol.symbolLayers?.toArray?.() ?? [];
+    for (const symbolLayer of symbolLayers) {
+      const href = symbolLayer?.resource?.href;
+      if (symbolLayer?.type === "icon" && href) {
+        return String(href);
+      }
+    }
+  }
+
+  if (symbol.type === "simple-marker") {
+    const color = symbol.color ?? {};
+    const [r, g, b] = [color.r ?? 128, color.g ?? 128, color.b ?? 128];
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><circle cx="12" cy="12" r="9" fill="rgb(${r},${g},${b})"/></svg>`;
+    return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+  }
+
+  return null;
 };
 
 const getLegendIconPath = (fireAsset: string): string | null => {
@@ -116,6 +153,29 @@ const findAssetsLayerInView = (view: any) => {
   );
 };
 
+// Etiqueta principal: lo DESCRIPTIVO (name_long/use_type) por delante; el
+// código de sala ("102", "140") deja de ser título — se muestra pequeño como
+// texto secundario. Si un espacio no tiene descriptivo (p. ej. aulas cuyo
+// nombre ES el número), se usa su name tal cual.
+const getItemDisplayLabel = (item: AssetItem) => {
+  const descriptive = [item.floorLevel, item.cardinal]
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .filter((value, index, all) => all.indexOf(value) === index)
+    .join(" · ");
+
+  return descriptive || item.name || `ID ${item.objectId}`;
+};
+
+const getItemDisplayDescription = (item: AssetItem) => {
+  const label = getItemDisplayLabel(item);
+  if (item.name && item.name.trim() && item.name !== label) {
+    return item.name;
+  }
+
+  return "";
+};
+
 export const AssetsPanel: React.FC<AssetsPanelProps> = ({
   sceneId,
   slot = "top-left",
@@ -132,6 +192,7 @@ export const AssetsPanel: React.FC<AssetsPanelProps> = ({
   });
   const syncingPopupCloseRef = useRef(false);
   const [assets, setAssets] = useState<AssetItem[]>([]);
+  const [rendererIconByValue, setRendererIconByValue] = useState<Map<string, string>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedObjectId, setSelectedObjectId] = useState<number | null>(null);
@@ -229,6 +290,7 @@ export const AssetsPanel: React.FC<AssetsPanelProps> = ({
       }
 
       const searchHaystack = [
+        asset.name,
         asset.fireAsset,
         asset.floorLevel,
         asset.levelId,
@@ -296,10 +358,10 @@ export const AssetsPanel: React.FC<AssetsPanelProps> = ({
       .sort(([groupA], [groupB]) => groupA.localeCompare(groupB))
       .map(([group, items]) => ({
         group,
-        legendIconPath: getLegendIconPath(group),
+        legendIconPath: rendererIconByValue.get(group) ?? getLegendIconPath(group),
         items: [...items].sort((itemA, itemB) => itemA.objectId - itemB.objectId),
       }));
-  }, [visibleAssets]);
+  }, [visibleAssets, rendererIconByValue]);
 
   useEffect(() => {
     let cancelled = false;
@@ -345,6 +407,33 @@ export const AssetsPanel: React.FC<AssetsPanelProps> = ({
           return;
         }
 
+        // Ayuda de mapeo: imprime el esquema real para ajustar config.ts.fields
+        console.log(
+          "[Activos] Capa cargada:",
+          assetsLayer?.title ?? assetsLayer?.url,
+          "| Campos disponibles:",
+          (assetsLayer?.fields ?? []).map((field: any) => field?.name),
+        );
+
+        // Simbología: mapa valor de categoría → URL del símbolo del renderer
+        try {
+          const renderer: any = (assetsLayer as any).renderer;
+          const nextIcons = new Map<string, string>();
+          if (renderer?.type === "unique-value") {
+            for (const info of renderer.uniqueValueInfos ?? []) {
+              const iconUrl = getSymbolIconUrl(info?.symbol);
+              if (iconUrl && info?.value !== null && info?.value !== undefined) {
+                nextIcons.set(String(info.value), iconUrl);
+              }
+            }
+          }
+          if (!cancelled) {
+            setRendererIconByValue(nextIcons);
+          }
+        } catch {
+          // Sin renderer legible, los grupos quedan sin ícono (no es bloqueante).
+        }
+
         const objectIdFieldName =
           assetsLayer.objectIdField || assetLayerConfig.fields.objectId;
         const nextAssets: AssetItem[] = [];
@@ -357,15 +446,18 @@ export const AssetsPanel: React.FC<AssetsPanelProps> = ({
 
           nextAssets.push({
             objectId,
+            name: ASSET_NAME_FIELD
+              ? getStringFieldValue(feature?.attributes, ASSET_NAME_FIELD, "")
+              : "",
             fireAsset: getStringFieldValue(
               feature?.attributes,
               ASSET_TYPE_FIELD,
-              "Unknown asset",
+              "Sin categoría",
             ),
             floorLevel: getStringFieldValue(
               feature?.attributes,
               ASSET_FLOOR_LABEL_FIELD,
-              "Unknown floor",
+              "",
             ),
             levelId: getStringFieldValue(feature?.attributes, ASSET_LEVEL_FIELD, ""),
             cardinal: getStringFieldValue(feature?.attributes, ASSET_CARDINAL_FIELD, ""),
@@ -376,7 +468,7 @@ export const AssetsPanel: React.FC<AssetsPanelProps> = ({
         setAssets(nextAssets);
       } catch {
         if (!cancelled) {
-          setLoadError("Unable to load fire assets right now.");
+          setLoadError("No se pudieron cargar los activos en este momento.");
           setAssets([]);
         }
       } finally {
@@ -464,9 +556,9 @@ export const AssetsPanel: React.FC<AssetsPanelProps> = ({
 
   return (
     <div slot={slot} className={styles.container}>
-      <calcite-panel className={styles.panel} heading="Assets">
+      <calcite-panel className={styles.panel} heading="Activos">
         <div className={styles.listContainer}>
-          {isLoading ? <div className={styles.status}>Loading assets...</div> : null}
+          {isLoading ? <div className={styles.status}>Cargando activos…</div> : null}
           {!isLoading && loadError ? <div className={styles.status}>{loadError}</div> : null}
           {!isLoading && !loadError ? (
             <div className={styles.contentLayout}>
@@ -476,14 +568,14 @@ export const AssetsPanel: React.FC<AssetsPanelProps> = ({
                   value={searchText}
                   onChange={(event) => setSearchText(event.target.value)}
                   className={styles.searchInput}
-                  placeholder="Filter by asset, floor, cardinal, or id"
-                  aria-label="Filter fire assets"
+                  placeholder="Filtrar por tipo, piso, detalle o ID"
+                  aria-label="Filtrar activos"
                 />
               </div>
               {groupedAssets.length > 0 ? (
                 <div className={styles.listScrollArea}>
                   <calcite-list
-                    label="Fire assets"
+                    label="Activos"
                     selection-mode="single"
                     selection-appearance="highlight"
                     display-mode="nested"
@@ -492,7 +584,7 @@ export const AssetsPanel: React.FC<AssetsPanelProps> = ({
                       <calcite-list-item
                         key={group.group}
                         label={group.group}
-                        description={`${group.items.length} assets`}
+                        description={`${group.items.length} activos`}
                         expanded
                       >
                         {group.legendIconPath ? (
@@ -507,8 +599,8 @@ export const AssetsPanel: React.FC<AssetsPanelProps> = ({
                         {group.items.map((item) => (
                           <calcite-list-item
                             key={item.objectId}
-                            label={`ID ${item.objectId}`}
-                            description={`${item.fireAsset} - ${item.floorLevel} ${item.cardinal}`}
+                            label={getItemDisplayLabel(item)}
+                            description={getItemDisplayDescription(item) || undefined}
                             metadata={{
                               fireAsset: item.fireAsset,
                               floorLevel: item.floorLevel,
@@ -527,7 +619,7 @@ export const AssetsPanel: React.FC<AssetsPanelProps> = ({
                   </calcite-list>
                 </div>
               ) : (
-                <div className={styles.status}>No assets match the current filters.</div>
+                <div className={styles.status}>Ningún activo coincide con los filtros actuales.</div>
               )}
             </div>
           ) : null}

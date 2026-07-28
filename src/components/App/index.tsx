@@ -23,10 +23,10 @@ import './App.css';
 import { SceneToolsHost } from '../SceneToolsHost';
 import navigationState from '../../stores/navigation';
 import { ViewSync } from '../ViewSync';
-import { LayersPanel } from '../LayersPanel';
 
 import "@esri/calcite-components/components/calcite-shell";
 import { Bookmarks } from '../Bookmarks';
+import { SecondaryScenePanel } from '../SecondaryScenePanel';
 
 const sceneId = "main-scene";
 const mapId = "main-map";
@@ -55,9 +55,9 @@ const App = observer(function App() {
           <MapView mapId={mapId} hidden={isSceneOnly}></MapView>
         </div>
         <SceneToolsHost sceneId={sceneId}></SceneToolsHost>
-        <LayersPanel></LayersPanel>
       </div>
       <Bookmarks></Bookmarks>
+      <SecondaryScenePanel></SecondaryScenePanel>
       <Identity></Identity>
       <ErrorAlert></ErrorAlert>
     </calcite-shell>  

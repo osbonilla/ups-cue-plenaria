@@ -6,7 +6,7 @@ import FeatureLayer from "@arcgis/core/layers/FeatureLayer";
 import Point from "@arcgis/core/geometry/Point";
 import * as reactiveUtils from "@arcgis/core/core/reactiveUtils";
 import * as webMercatorUtils from "@arcgis/core/geometry/support/webMercatorUtils";
-import { assetLayerConfig } from "../../config";
+import { assetLayerConfig, orientedImageryConfig } from "../../config";
 import state from "../../stores/state";
 import navigationState from "../../stores/navigation";
 import { AssetsPanel } from "../AssetsPanel";
@@ -30,7 +30,7 @@ export const SceneToolsHost = observer(({ sceneId = "main-scene" }: SceneToolsHo
   const fireAssetsLayerItemId = assetLayerConfig.itemId;
   const objectIdField = assetLayerConfig.fields.objectId;
   const levelLookupUrl = "https://services6.arcgis.com/oQnbmhWcCuy4gMUa/arcgis/rest/services/Vancouver__BCplace_levels/FeatureServer/126";
-  const [sectionCenterX, sectionCenterY] = [-8737376.607724095, -23125.283681528585];
+  const [sectionCenterX, sectionCenterY] = [-8737327.184, -23116.927];
 
   // --- REFERENCIA VERTICAL LOCAL DE LA ESCENA ---
   // Esta Web Scene es una "Local Scene" con su propio marco vertical, NO la
@@ -44,8 +44,8 @@ export const SceneToolsHost = observer(({ sceneId = "main-scene" }: SceneToolsHo
   const [buildingZRange, setBuildingZRange] = useState<{ zmin: number; zmax: number } | null>(null);
   // --- fin REFERENCIA VERTICAL ---
 
-  const sectionPlaneWidth = 300;
-  const sectionPlaneHeight = 130;
+  const sectionPlaneWidth = 150;
+  const sectionPlaneHeight = 50;
   const sectionPlaneTilt = 90;
   const sceneView = state.getView("scene");
   const mapView = state.getView("map");
@@ -104,10 +104,10 @@ export const SceneToolsHost = observer(({ sceneId = "main-scene" }: SceneToolsHo
   // el plano de Sections, para que ambas herramientas corten en tu edificio.
   const createSlicePlane = (z: number) =>
     new SlicePlane({
-      heading: 0, // (antes 51.76°: orientación de BC Place; irrelevante en un plano horizontal)
+      heading: 58, // (antes 51.76°: orientación de BC Place; irrelevante en un plano horizontal)
       tilt: 0,
-      width: 1000,
-      height: 1000,
+      width: 135,
+      height: 110,
       position: {
         spatialReference: { latestWkid: 3857, wkid: 102100 },
         x: sectionCenterX,
@@ -696,7 +696,7 @@ console.log('[SceneTools] CAPAS OPERATIVAS en la escena:\n' + layerSummary);
           tiltEnabled: false,
           excludeGroundSurface: true,
           excludedLayers,
-          shape: createSectionsSlicePlane(0),
+          shape: createSectionsSlicePlane(147.5228646554149),
         });
 
       sectionsSliceAnalysisRef.current = sectionsSliceAnalysis;
@@ -949,6 +949,7 @@ console.log('[SceneTools] Sections slice AGREGADO y activo', {
     const imageryLayerTitles = new Set([
       "stadium survey images pavco public",
       "survey arrows",
+      orientedImageryConfig.title.trim().toLowerCase(), // grupo Mapillary (Living Atlas)
     ]);
 
     const setLayerVisibility = (view: any) => {

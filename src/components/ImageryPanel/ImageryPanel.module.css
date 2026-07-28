@@ -58,3 +58,20 @@
   max-width: 100%;
   margin-inline: auto;
 }
+.fallbackLink {
+  display: block;
+  padding: 0.5rem 0.75rem 0.75rem;
+  font-size: 0.8rem;
+  color: var(--calcite-color-brand);
+  text-decoration: none;
+}
+
+.fallbackLink:hover {
+  text-decoration: underline;
+}
+
+.statusLine {
+  padding: 0.5rem 0.75rem 0;
+  font-size: 0.8rem;
+  color: var(--calcite-color-text-2);
+}

@@ -25,6 +25,7 @@
   "dependencies": {
     "@arcgis/map-components": "^5.0.15",
     "@esri/calcite-components": "^5.0.2",
+    "mapillary-js": "^4.1.2",
     "mobx": "^6.13.7",
     "mobx-react-lite": "^4.1.0",
     "motion": "^12.11.0",

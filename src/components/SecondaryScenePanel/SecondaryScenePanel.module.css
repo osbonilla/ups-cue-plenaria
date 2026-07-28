@@ -1,0 +1,59 @@
+.overlay {
+  position: fixed;
+  inset: 84px 24px 24px 24px;
+  z-index: 900;
+  display: flex;
+  pointer-events: none;
+}
+
+.panel {
+  flex: 1;
+  pointer-events: auto;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.body {
+  position: relative;
+  height: 100%;
+  min-height: 320px;
+}
+
+.sceneContainer {
+  position: absolute;
+  inset: 0;
+}
+
+.status {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 16px;
+  font-size: 14px;
+  background: color-mix(in srgb, var(--calcite-color-foreground-1, #fff) 70%, transparent);
+  pointer-events: none;
+}
+
+.closeButton {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 10;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.closeButton:hover {
+  background: rgba(0, 0, 0, 0.75);
+}

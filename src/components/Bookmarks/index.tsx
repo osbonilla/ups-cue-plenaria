@@ -4,6 +4,9 @@ import { FC, ReactNode, useEffect, useState } from 'react';
 import { observer } from 'mobx-react-lite';
 import navigationState from '../../stores/navigation';
 import Slide from '@arcgis/core/webscene/Slide';
+import Viewpoint from '@arcgis/core/Viewpoint';
+import Camera from '@arcgis/core/Camera';
+import { defaultBookmarks } from '../../config';
 
 interface Props {
   children?: ReactNode;
@@ -23,6 +26,48 @@ interface SlideNavigationSnapshot {
   scale: number | null;
 }
 
+
+// --- Bookmarks predeterminados (definidos en config.ts) ---
+// Miniatura autogenerada (SVG en data-URI) con la inicial del título, para
+// bookmarks de config que no traen thumbnailUrl. El componente exige
+// slide.thumbnail.url para renderizar el círculo.
+const makeBookmarkThumbnail = (title: string) => {
+  const initial = (title.trim().charAt(0) || '•').toUpperCase();
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96"><rect width="96" height="96" rx="48" fill="#31872e"/><text x="48" y="60" font-family="Avenir Next, Arial, sans-serif" font-size="42" fill="#ffffff" text-anchor="middle">${initial}</text></svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+};
+
+const isConfigBookmark = (slideId: string | null | undefined) =>
+  defaultBookmarks.some((bookmark) => bookmark.id === slideId);
+
+// Crea (una sola vez, a prueba de StrictMode) los slides declarados en
+// config.defaultBookmarks dentro de webScene.presentation.slides.
+const injectDefaultBookmarks = (webScene: __esri.WebScene) => {
+  const slidesCollection = webScene?.presentation?.slides;
+  if (!slidesCollection) {
+    return;
+  }
+
+  for (const bookmark of defaultBookmarks) {
+    const alreadyThere = slidesCollection.some((slide: any) => slide?.id === bookmark.id);
+    if (alreadyThere) {
+      continue;
+    }
+
+    try {
+      const slide = new Slide({
+        id: bookmark.id,
+        title: { text: bookmark.title } as any,
+        viewpoint: new Viewpoint({ camera: Camera.fromJSON(bookmark.camera) }),
+        thumbnail: { url: bookmark.thumbnailUrl ?? makeBookmarkThumbnail(bookmark.title) } as any,
+      });
+      slidesCollection.add(slide);
+    } catch (error) {
+      console.warn('[Bookmarks] Bookmark predeterminado inválido en config.ts:', bookmark.id, error);
+    }
+  }
+};
+
 export const Bookmarks: FC<Props> = observer(() => {
   const sceneView = state.getView("scene");
   const mapView = state.getView("map");
@@ -34,6 +79,7 @@ export const Bookmarks: FC<Props> = observer(() => {
   useEffect(() => {
     if (sceneLoaded && sceneView) {
       const view = sceneView;
+      injectDefaultBookmarks(view.map as __esri.WebScene);
       const slides = view.map.presentation.slides;
       setSlides(slides);
     }
@@ -79,7 +125,7 @@ export const Bookmarks: FC<Props> = observer(() => {
     try {
       // Apply complete slide state (camera + environment such as lighting/weather)
       // as authored in the WebScene slide JSON.
-      if (sceneView && typeof (slide as any).applyTo === 'function') {
+      if (sceneView && !isConfigBookmark(slide?.id) && typeof (slide as any).applyTo === 'function') {
         await (slide as any).applyTo(sceneView, {
           duration: 650,
           easing: 'ease-in-out',

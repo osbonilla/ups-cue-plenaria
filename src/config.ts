@@ -27,8 +27,8 @@ export type MapConfig = {
 };
 
 export const mapConfig = {
-  'web-scene-id': '4d71fc861f9345c3877981dbcc877e01',
-  'web-map-id': 'a82857c334424c0db5749d840ac85d3f'
+  'web-scene-id': '7c30c6c76fa0432a92157fafbc2cfe22',
+  'web-map-id': 'c9ec7df8b356464bbe51c67aab3abb0f'
 };
 
 export type AssetLayerFields = {
@@ -60,9 +60,9 @@ export const assetLayerConfig: AssetLayerConfig = {
   },
 };
 
-export const portalUrl = 'https://3dgis.maps.arcgis.com/';
+export const portalUrl = 'https://arcgis.esri.co/portal';
 
-export const applicationTitle = "BC Place Stadium - Fire Asset Viewer";
-export const applicationDescription = "Fictitious data for demonstration purposes only";
+export const applicationTitle = "Infraestructura Viva";
+export const applicationDescription = "Gemelo Digital de un campus universitario con modelos BIM, ArcGIS Maps SDK for JavaScript y visualización 3D.";
 
-export const applicationId = 'HPnAWuMNmRv7tnRZ';
+export const applicationId = 'J67XjhOQ7O45mV0u';

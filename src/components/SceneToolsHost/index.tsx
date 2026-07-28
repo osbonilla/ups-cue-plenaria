@@ -29,7 +29,7 @@ export const SceneToolsHost = observer(({ sceneId = "main-scene" }: SceneToolsHo
   const fireAssetsLayerItemId = assetLayerConfig.itemId;
   const objectIdField = assetLayerConfig.fields.objectId;
   const levelLookupUrl = "https://services6.arcgis.com/oQnbmhWcCuy4gMUa/arcgis/rest/services/Vancouver__BCplace_levels/FeatureServer/126";
-  const [sectionCenterX, sectionCenterY] = webMercatorUtils.lngLatToXY(-123.111999, 49.276729);
+  const [sectionCenterX, sectionCenterY] = webMercatorUtils.lngLatToXY(-78.4935, -0.2100);
   const sectionCenterZ = 25;
   const sectionPlaneWidth = 300;
   const sectionPlaneHeight = 130;

@@ -14,10 +14,14 @@
  */
 import React, {StrictMode} from 'react';
 import { createRoot } from 'react-dom/client';
+import esriConfig from '@arcgis/core/config';
 import './main.css';
 import '@esri/calcite-components/main.css';
 import '@arcgis/map-components/main.css';
 import App from './components/App';
+import { portalUrl } from './config';
+
+esriConfig.portalUrl = portalUrl;
 
 const root = createRoot(document.getElementById('root') as HTMLElement);
 

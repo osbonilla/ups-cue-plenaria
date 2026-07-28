@@ -33,7 +33,7 @@ export const InlineNavToggles: React.FC<InlineNavTogglesProps> = observer(({ slo
         onClick={handleFloorsToggle}
         aria-pressed={toggles.floors}
       >
-        FLOORS
+        PISOS
       </button>
       <span className={styles.separator} aria-hidden="true">
         |
@@ -44,7 +44,7 @@ export const InlineNavToggles: React.FC<InlineNavTogglesProps> = observer(({ slo
         onClick={() => navigationState.toggle("assets")}
         aria-pressed={toggles.assets}
       >
-        ASSETS
+        ACTIVOS
       </button>
       <span className={styles.separator} aria-hidden="true">
         |
@@ -55,7 +55,7 @@ export const InlineNavToggles: React.FC<InlineNavTogglesProps> = observer(({ slo
         onClick={handleSectionsToggle}
         aria-pressed={toggles.sections}
       >
-        SECTIONS
+        SECCIONES
       </button>
       <span className={styles.separator} aria-hidden="true">
         |
@@ -77,7 +77,7 @@ export const InlineNavToggles: React.FC<InlineNavTogglesProps> = observer(({ slo
         onClick={() => navigationState.toggle("analysis")}
         aria-pressed={toggles.analysis}
       >
-        ANALYSIS
+        ANÁLISIS
       </button>
       <span className={styles.separator} aria-hidden="true">
         |

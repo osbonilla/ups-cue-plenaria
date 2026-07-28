@@ -37,7 +37,14 @@ export const ViewSync = observer(() => {
   const releaseControlTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
+    console.log('[ViewSync] effect running', {
+      hasSceneView: !!sceneView,
+      hasMapView: !!mapView,
+      activeViewId,
+    });
+
     if (!sceneView || !mapView) {
+      console.log('[ViewSync] missing a view, bailing out of effect');
       return;
     }
 
@@ -49,6 +56,7 @@ export const ViewSync = observer(() => {
     };
 
     const setController = (source: SyncSource) => {
+      console.log('[ViewSync] setController ->', source);
       clearReleaseTimer();
       controllingSourceRef.current = source;
     };
@@ -56,18 +64,29 @@ export const ViewSync = observer(() => {
     const scheduleControlRelease = () => {
       clearReleaseTimer();
       releaseControlTimerRef.current = window.setTimeout(() => {
+        console.log('[ViewSync] control released (timeout)');
         controllingSourceRef.current = null;
         releaseControlTimerRef.current = null;
       }, CONTROL_RELEASE_DELAY_MS);
     };
 
     const applyViewpoint = async (source: any, target: any) => {
+      console.log('[ViewSync] applyViewpoint called', {
+        sourceType: source?.type,
+        targetType: target?.type,
+        hasSource: !!source,
+        hasTarget: !!target,
+        isApplyingSync: isApplyingSyncRef.current,
+      });
+
       if (!source || !target || isApplyingSyncRef.current) {
+        console.log('[ViewSync] applyViewpoint early return (missing source/target or already applying)');
         return;
       }
 
       const now = Date.now();
       if (now - lastSyncAtRef.current < SYNC_THROTTLE_MS) {
+        console.log('[ViewSync] applyViewpoint throttled, skipping');
         return;
       }
 
@@ -80,6 +99,13 @@ export const ViewSync = observer(() => {
           ? source.camera.heading
           : null;
 
+      console.log('[ViewSync] snapshot values', {
+        center: center ? { x: center.x, y: center.y, spatialReference: center.spatialReference } : null,
+        zoom,
+        scale,
+        heading,
+      });
+
       const snapshot: SyncSnapshot = {
         center,
         zoom,
@@ -88,6 +114,7 @@ export const ViewSync = observer(() => {
       };
 
       if (!snapshot.center) {
+        console.log('[ViewSync] applyViewpoint aborted: snapshot.center is null');
         return;
       }
 
@@ -112,8 +139,12 @@ export const ViewSync = observer(() => {
           }
 
           target.zoom = Math.max(0, adjustedZoom);
+          console.log('[ViewSync] applied zoom ->', target.zoom, '(adjusted from', snapshot.zoom, ')');
         } else if (snapshot.scale !== null && Number.isFinite(snapshot.scale)) {
           target.scale = snapshot.scale;
+          console.log('[ViewSync] applied scale ->', target.scale);
+        } else {
+          console.log('[ViewSync] no zoom AND no scale available to apply — target left unchanged on that axis');
         }
 
         if (targetIsMap) {
@@ -132,8 +163,15 @@ export const ViewSync = observer(() => {
             target.camera = camera;
           }
         }
-      } catch {
-        // Ignore view state errors during rapid interaction.
+
+        console.log('[ViewSync] applyViewpoint SUCCESS', {
+          targetType: target.type,
+          targetCenter: target.center ? { x: target.center.x, y: target.center.y } : null,
+          targetZoom: target.zoom,
+          targetScale: target.scale,
+        });
+      } catch (err) {
+        console.log('[ViewSync] applyViewpoint threw an error', err);
       } finally {
         window.requestAnimationFrame(() => {
           isApplyingSyncRef.current = false;
@@ -147,15 +185,23 @@ export const ViewSync = observer(() => {
 
       const sourceIsActive = Boolean(source?.interacting || source?.animation);
 
+      console.log('[ViewSync] syncFrom called', {
+        sourceId,
+        sourceIsActive,
+        controllingSource: controllingSourceRef.current,
+      });
+
       if (sourceIsActive) {
         setController(sourceId);
       }
 
       if (controllingSourceRef.current && controllingSourceRef.current !== sourceId) {
+        console.log('[ViewSync] syncFrom blocked: another source is in control ->', controllingSourceRef.current);
         return;
       }
 
       if (!sourceIsActive && controllingSourceRef.current !== sourceId) {
+        console.log('[ViewSync] syncFrom blocked: source not active and not the controller');
         return;
       }
 
@@ -167,18 +213,40 @@ export const ViewSync = observer(() => {
     };
 
     const initialSource = activeViewId === "map" ? "map" : "scene";
+    console.log('[ViewSync] initialSource =', initialSource, '| waiting for both views to be ready...');
     setController(initialSource);
-    syncFrom(initialSource);
+
+    Promise.all([sceneView.when(), mapView.when()])
+      .then(() => {
+        console.log('[ViewSync] BOTH views resolved .when() — calling syncFrom(', initialSource, ')');
+        console.log('[ViewSync] sceneView state at ready:', {
+          center: sceneView.center ? { x: sceneView.center.x, y: sceneView.center.y } : null,
+          zoom: sceneView.zoom,
+          scale: sceneView.scale,
+        });
+        console.log('[ViewSync] mapView state at ready:', {
+          center: mapView.center ? { x: mapView.center.x, y: mapView.center.y } : null,
+          zoom: mapView.zoom,
+          scale: mapView.scale,
+        });
+        syncFrom(initialSource);
+      })
+      .catch((err) => {
+        console.log('[ViewSync] ERROR while waiting for views to be ready', err);
+      });
 
     const sceneHandle = reactiveUtils.watch(() => sceneView.viewpoint, () => {
+      console.log('[ViewSync] sceneView.viewpoint CHANGED (watch fired)');
       syncFrom("scene");
     });
 
     const mapHandle = reactiveUtils.watch(() => mapView.viewpoint, () => {
+      console.log('[ViewSync] mapView.viewpoint CHANGED (watch fired)');
       syncFrom("map");
     });
 
     const sceneInteractingHandle = reactiveUtils.watch(() => sceneView.interacting, (isInteracting: boolean) => {
+      console.log('[ViewSync] sceneView.interacting ->', isInteracting);
       if (isInteracting) {
         setController("scene");
         return;
@@ -190,6 +258,7 @@ export const ViewSync = observer(() => {
     });
 
     const mapInteractingHandle = reactiveUtils.watch(() => mapView.interacting, (isInteracting: boolean) => {
+      console.log('[ViewSync] mapView.interacting ->', isInteracting);
       if (isInteracting) {
         setController("map");
         return;
@@ -201,6 +270,7 @@ export const ViewSync = observer(() => {
     });
 
     return () => {
+      console.log('[ViewSync] effect cleanup');
       clearReleaseTimer();
       sceneHandle?.remove?.();
       mapHandle?.remove?.();

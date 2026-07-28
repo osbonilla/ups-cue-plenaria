@@ -32,14 +32,17 @@ export const SceneToolsHost = observer(({ sceneId = "main-scene" }: SceneToolsHo
   const levelLookupUrl = "https://services6.arcgis.com/oQnbmhWcCuy4gMUa/arcgis/rest/services/Vancouver__BCplace_levels/FeatureServer/126";
   const [sectionCenterX, sectionCenterY] = [-8737376.607724095, -23125.283681528585];
 
-  // --- NUEVO: elevación real del terreno en el campus (Quito ~2850 msnm) ---
-  // Los valores originales (sectionCenterZ = 25, floorLevels 7.7-24.56) estaban
-  // calibrados para Vancouver (nivel del mar) y dejaban el plano de corte a
-  // ~2800 m bajo tierra en Quito. Consultamos la elevación real una sola vez
-  // cuando la escena está lista, con un valor de respaldo mientras carga.
-  const [groundElevation, setGroundElevation] = useState<number | null>(null);
-  const sectionCenterZ = groundElevation ?? 10;
-  // --- fin NUEVO ---
+  // --- REFERENCIA VERTICAL LOCAL DE LA ESCENA ---
+  // Esta Web Scene es una "Local Scene" con su propio marco vertical, NO la
+  // elevación global de Quito (~2791 msnm): nunca usar ground.queryElevation().
+  // OJO: el z ≈ 18 medido con view.center es donde el rayo central de la cámara
+  // tocó el modelo (probablemente la CUBIERTA, no la base). Se usa solo como
+  // respaldo: el rango real zmin/zmax se lee del fullExtent del propio
+  // BuildingSceneLayer (ver autocalibración más abajo).
+  const buildingBaseZ = 18;
+  const sectionCenterZ = buildingBaseZ; // plano vertical de 130 m de alto centrado aquí: cubre el edificio con holgura
+  const [buildingZRange, setBuildingZRange] = useState<{ zmin: number; zmax: number } | null>(null);
+  // --- fin REFERENCIA VERTICAL ---
 
   const sectionPlaneWidth = 300;
   const sectionPlaneHeight = 130;
@@ -61,23 +64,23 @@ export const SceneToolsHost = observer(({ sceneId = "main-scene" }: SceneToolsHo
   const [selectedLevel, setSelectedLevel] = useState(4);
   const [visibleAssetObjectIds, setVisibleAssetObjectIds] = useState<number[] | null>(null);
 
-  // --- MODIFICADO: floorLevels ahora usa la elevación real como base ---
-  // Antes: alturas absolutas de Vancouver (7.7, 13, 19, 24.56 msnm).
-  // Ahora: elevación real del terreno + alturas de piso relativas (~5m c/u,
-  // ajústalas cuando tengas las alturas reales de tu BIM).
-  const floorLevels = useMemo(
-    () => {
-      const base = groundElevation ?? 2850;
-      return [
-        { level: 1, z: base + 4 },
-        { level: 2, z: base + 9 },
-        { level: 3, z: base + 14 },
-        { level: 4, z: base + 19 },
-      ];
-    },
-    [groundElevation],
-  );
-  // --- fin MODIFICADO ---
+  // --- PISOS AUTOCALIBRADOS AL RANGO VERTICAL REAL DEL BIM ---
+  // El plano horizontal oculta lo que queda ARRIBA del corte: para "ver el
+  // piso N" el z debe quedar entre la losa del piso N y su techo. Los cortes
+  // se reparten uniformemente entre el zmin y zmax reales del edificio
+  // (leídos del fullExtent del BuildingSceneLayer). Nivel 4 ≈ edificio casi
+  // completo. Afinado fino opcional: reemplazar por los z reales de cada losa
+  // (listener de clic) o derivarlos del layer "Levels" de Indoors en Fase 2.
+  const floorLevels = useMemo(() => {
+    const zmin = buildingZRange?.zmin ?? buildingBaseZ - 18; // respaldo: base ≈ 0
+    const zmax = buildingZRange?.zmax ?? buildingBaseZ;      // respaldo: cubierta ≈ 18
+    const span = Math.max(zmax - zmin, 4); // evita rangos degenerados
+    return [1, 2, 3, 4].map((level) => ({
+      level,
+      z: zmin + (span * level) / 4,
+    }));
+  }, [buildingZRange]);
+  // --- fin PISOS ---
 
   const activeZ = useMemo(
     () => floorLevels.find((item) => item.level === selectedLevel)?.z ?? floorLevels[0].z,
@@ -101,8 +104,8 @@ export const SceneToolsHost = observer(({ sceneId = "main-scene" }: SceneToolsHo
   // el plano de Sections, para que ambas herramientas corten en tu edificio.
   const createSlicePlane = (z: number) =>
     new SlicePlane({
-      heading: 51.76797514952818,
-      tilt: 0.00024752456693022395,
+      heading: 0, // (antes 51.76°: orientación de BC Place; irrelevante en un plano horizontal)
+      tilt: 0,
       width: 1000,
       height: 1000,
       position: {
@@ -455,32 +458,47 @@ export const SceneToolsHost = observer(({ sceneId = "main-scene" }: SceneToolsHo
     }
   };
 
-  const applyFloorFilters = async (view: any, currentLevel: number) => {
-    const activeLevelIds = getActiveLevelIds(currentLevel);
-    const normalizedAssetUrl = assetLayerConfig.serviceUrl.trim().replace(/\/+$/, "").toLowerCase();
-    const normalizedAssetItemId = fireAssetsLayerItemId.trim().toLowerCase();
-
-    const layers = view?.map?.allLayers?.toArray?.() ?? [];
-
-    for (const layer of layers) {
-      const layerUrl = String(layer?.url ?? "").trim().replace(/\/+$/, "").toLowerCase();
-      const layerItemId = String(layer?.portalItem?.id ?? "").trim().toLowerCase();
-      if (layerUrl === normalizedAssetUrl || (normalizedAssetItemId.length > 0 && layerItemId === normalizedAssetItemId)) {
-        continue;
-      }
-
-      const supportsFloorFilter = await hasLevelField(layer);
-      if (!supportsFloorFilter || ["BCplace - level1", "BCplace - level2", "BCplace - level3", "BCplace - level4"].includes(layer.title)) {
-        await setLayerViewFilter(view, layer, null);
-        continue;
-      }
-
-      const whereEquals = buildSqlInClause(levelField, activeLevelIds);
-      await setLayerViewFilter(view, layer, whereEquals);
-    }
+  // FASE 2 PENDIENTE: este filtrado usaba el lookup de niveles de Vancouver
+  // (GUIDs de LEVEL_ID de BC Place). En la escena de Bloque A UPS las capas
+  // Indoors (Levels, Units, Details...) SÍ tienen campo LEVEL_ID, así que
+  // aplicarles IDs ajenos las dejaba EN BLANCO al activar PISOS ("1=0" o
+  // 0 coincidencias). Neutralizado hasta reconstruirlo con el layer "Levels"
+  // real de la escena (el corte geométrico por piso NO depende de esto).
+  const applyFloorFilters = async (_view: any, _currentLevel: number) => {
+    return;
   };
 
-  // --- NUEVO: consulta la elevación real del terreno una sola vez ---
+  // === TEMPORAL: CALIBRACIÓN — ELIMINAR ANTES DE LA DEMO ===
+  // Expone la vista en window.__view y loguea el z LOCAL de cada clic en la
+  // escena. Uso: haz clic sobre la línea de cada losa en la fachada del BIM,
+  // anota los z reales y reemplaza los provisionales de floorLevels.
+  useEffect(() => {
+    if (!sceneView) {
+      return;
+    }
+
+    (window as any).__view = sceneView;
+    const clickHandle = sceneView.on("click", (event: any) => {
+      console.log(
+        "[Calibración] z del punto clickeado:",
+        event.mapPoint?.z?.toFixed?.(2),
+        event.mapPoint?.toJSON?.(),
+      );
+    });
+
+    return () => {
+      clickHandle?.remove?.();
+    };
+  }, [sceneView]);
+  // === fin TEMPORAL ===
+
+  // --- AUTOCALIBRACIÓN DEL RANGO VERTICAL DEL EDIFICIO ---
+  // Lee zmin/zmax del fullExtent del BuildingSceneLayer (BIM). A diferencia de
+  // ground.queryElevation() (elevación GLOBAL, incompatible con esta Local
+  // Scene), el extent del layer está por definición en el marco vertical de la
+  // propia escena: es la fuente autoritativa para posicionar los cortes.
+  // Cuando el rango llega, floorLevels → activeZ cambian y el efecto de
+  // animación existente reubica el plano solo: se auto-corrige en caliente.
   useEffect(() => {
     if (!sceneView) {
       return;
@@ -488,35 +506,73 @@ export const SceneToolsHost = observer(({ sceneId = "main-scene" }: SceneToolsHo
 
     let cancelled = false;
 
-    sceneView.when(() => {
-      if (cancelled) {
+    const containsBuildingCenter = (extent: any) =>
+      extent &&
+      extent.xmin <= sectionCenterX && sectionCenterX <= extent.xmax &&
+      extent.ymin <= sectionCenterY && sectionCenterY <= extent.ymax;
+
+    const extentArea = (extent: any) =>
+      (extent.xmax - extent.xmin) * (extent.ymax - extent.ymin);
+
+    const resolveBuildingZRange = async () => {
+      await sceneView.when();
+      const allLayers = sceneView.map?.allLayers?.toArray?.() ?? [];
+
+      // 1) Preferimos el BuildingSceneLayer (el BIM). 2) Si no hay, el
+      // SceneLayer que contenga el centro del edificio con MENOR área de
+      // extent (para esquivar capas ciudad-completa tipo "OSM Buildings").
+      let target: any =
+        allLayers.find((layer: any) => layer?.type === "building-scene") ?? null;
+
+      if (!target) {
+        const sceneLayers = allLayers.filter((layer: any) => layer?.type === "scene");
+        for (const layer of sceneLayers) {
+          try {
+            await layer?.load?.();
+          } catch {
+            // Capa que no carga: se ignora como candidata.
+          }
+        }
+        const containing = sceneLayers.filter((layer: any) => containsBuildingCenter(layer?.fullExtent));
+        containing.sort((a: any, b: any) => extentArea(a.fullExtent) - extentArea(b.fullExtent));
+        target = containing[0] ?? null;
+      }
+
+      if (!target) {
+        console.warn(
+          "[SceneTools] Autocalibración: no encontré BuildingSceneLayer/SceneLayer del BIM; usando respaldo z",
+          { zmin: buildingBaseZ - 18, zmax: buildingBaseZ },
+        );
         return;
       }
 
-      const point = new Point({
-        x: sectionCenterX,
-        y: sectionCenterY,
-        spatialReference: { wkid: 102100 },
-      });
+      try {
+        await target?.load?.();
+      } catch {
+        // Si la capa objetivo no carga, se mantiene el respaldo.
+      }
 
-      sceneView.map?.ground
-  ?.queryElevation(point)
-  .then((result: any) => {
-    console.log('[SceneTools] queryElevation SUCCESS ->', result?.geometry?.z, result);
-    if (!cancelled && result?.geometry?.z !== undefined) {
-      setGroundElevation(result.geometry.z);
-    }
-  })
-  .catch((err: any) => {
-    console.log('[SceneTools] queryElevation FAILED, usando respaldo 2850 ->', err);
-  });
-    });
+      const extent = target?.fullExtent;
+      if (cancelled || !extent || typeof extent.zmin !== "number" || typeof extent.zmax !== "number") {
+        console.warn("[SceneTools] Autocalibración: el layer no expone zmin/zmax en fullExtent", target?.title, extent);
+        return;
+      }
+
+      console.log("[SceneTools] Rango vertical REAL del BIM →", {
+        layer: target.title,
+        zmin: extent.zmin,
+        zmax: extent.zmax,
+      });
+      setBuildingZRange({ zmin: extent.zmin, zmax: extent.zmax });
+    };
+
+    void resolveBuildingZRange();
 
     return () => {
       cancelled = true;
     };
   }, [sceneView]);
-  // --- fin NUEVO ---
+  // --- fin AUTOCALIBRACIÓN ---
 
   useEffect(() => {
     let cancelled = false;
@@ -659,12 +715,6 @@ console.log('[SceneTools] Sections slice AGREGADO y activo', {
   analysisViewActive: sectionsAnalysisView.active,
 });
 
-        console.log('[SceneTools] Sections slice AGREGADO y activo', {
-          position: sectionsSliceAnalysis.shape?.position,
-          inAnalyses: view.analyses.indexOf(sectionsSliceAnalysis) !== -1,
-          analysisViewActive: sectionsAnalysisView.active,
-        });
-
         sectionsSliceShapeWatchHandleRef.current?.remove?.();
         // remove the lock-in, place initial position of the slice and if user moves it, they can re-center it.
         // sectionsSliceShapeWatchHandleRef.current = reactiveUtils.watch(() => sectionsSliceAnalysis.shape, (shape: any) => {
@@ -707,15 +757,6 @@ console.log('[SceneTools] Sections slice AGREGADO y activo', {
   }, [sceneView, navigationState.toggles.sections]);
 
   useEffect(() => {
-    const sectionsSliceAnalysis = sectionsSliceAnalysisRef.current;
-    if (!sectionsSliceAnalysis) {
-      return;
-    }
-    const currentHeading = sectionsSliceAnalysis.shape?.heading ?? 0;
-    sectionsSliceAnalysis.shape = createSectionsSlicePlane(currentHeading);
-  }, [sectionCenterZ]);
-
-  useEffect(() => {
     if (!navigationState.toggles.floors) {
       return;
     }
@@ -740,7 +781,7 @@ console.log('[SceneTools] Sections slice AGREGADO y activo', {
       return;
     }
 
-    console.log('[SceneTools] animando plano de Floors', { startZ, endZ, selectedLevel, groundElevation });
+    console.log('[SceneTools] animando plano de Floors', { startZ, endZ, selectedLevel });
     const startTime = performance.now();
 
     const easeInOutCubic = (t: number) =>

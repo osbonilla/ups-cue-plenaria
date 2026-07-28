@@ -27,7 +27,7 @@ export type MapConfig = {
 };
 
 export const mapConfig = {
-  'web-scene-id': '7c30c6c76fa0432a92157fafbc2cfe22',
+  'web-scene-id': 'bd4a0bcbd92c41c392df28075d682d69',
   'web-map-id': 'c9ec7df8b356464bbe51c67aab3abb0f'
 };
 

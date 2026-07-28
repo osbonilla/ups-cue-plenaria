@@ -3,6 +3,7 @@ import { observer } from "mobx-react-lite";
 import SliceAnalysis from "@arcgis/core/analysis/SliceAnalysis";
 import SlicePlane from "@arcgis/core/analysis/SlicePlane";
 import FeatureLayer from "@arcgis/core/layers/FeatureLayer";
+import Point from "@arcgis/core/geometry/Point";
 import * as reactiveUtils from "@arcgis/core/core/reactiveUtils";
 import * as webMercatorUtils from "@arcgis/core/geometry/support/webMercatorUtils";
 import { assetLayerConfig } from "../../config";
@@ -24,13 +25,22 @@ interface SceneToolsHostProps {
 }
 
 export const SceneToolsHost = observer(({ sceneId = "main-scene" }: SceneToolsHostProps) => {
-  const excludedLayerTitles = ["Spexi BC Place (filtered)", "Spexi Mesh", "Shells (CBD)", "Buildings", "Vancouver trees", "Vancovuer trees", "Esri 3D Buildings", "Water surface (0m)"];
+  const excludedLayerTitles = ["Places and Labels"];
   const fireAssetsLayerTitle = assetLayerConfig.title;
   const fireAssetsLayerItemId = assetLayerConfig.itemId;
   const objectIdField = assetLayerConfig.fields.objectId;
   const levelLookupUrl = "https://services6.arcgis.com/oQnbmhWcCuy4gMUa/arcgis/rest/services/Vancouver__BCplace_levels/FeatureServer/126";
-  const [sectionCenterX, sectionCenterY] = webMercatorUtils.lngLatToXY(-78.4935, -0.2100);
-  const sectionCenterZ = 25;
+  const [sectionCenterX, sectionCenterY] = [-8737376.607724095, -23125.283681528585];
+
+  // --- NUEVO: elevación real del terreno en el campus (Quito ~2850 msnm) ---
+  // Los valores originales (sectionCenterZ = 25, floorLevels 7.7-24.56) estaban
+  // calibrados para Vancouver (nivel del mar) y dejaban el plano de corte a
+  // ~2800 m bajo tierra en Quito. Consultamos la elevación real una sola vez
+  // cuando la escena está lista, con un valor de respaldo mientras carga.
+  const [groundElevation, setGroundElevation] = useState<number | null>(null);
+  const sectionCenterZ = groundElevation ?? 10;
+  // --- fin NUEVO ---
+
   const sectionPlaneWidth = 300;
   const sectionPlaneHeight = 130;
   const sectionPlaneTilt = 90;
@@ -51,15 +61,23 @@ export const SceneToolsHost = observer(({ sceneId = "main-scene" }: SceneToolsHo
   const [selectedLevel, setSelectedLevel] = useState(4);
   const [visibleAssetObjectIds, setVisibleAssetObjectIds] = useState<number[] | null>(null);
 
+  // --- MODIFICADO: floorLevels ahora usa la elevación real como base ---
+  // Antes: alturas absolutas de Vancouver (7.7, 13, 19, 24.56 msnm).
+  // Ahora: elevación real del terreno + alturas de piso relativas (~5m c/u,
+  // ajústalas cuando tengas las alturas reales de tu BIM).
   const floorLevels = useMemo(
-    () => [
-      { level: 1, z: 7.7 },
-      { level: 2, z: 13 },
-      { level: 3, z: 19 },
-      { level: 4, z: 24.56 },
-    ],
-    [],
+    () => {
+      const base = groundElevation ?? 2850;
+      return [
+        { level: 1, z: base + 4 },
+        { level: 2, z: base + 9 },
+        { level: 3, z: base + 14 },
+        { level: 4, z: base + 19 },
+      ];
+    },
+    [groundElevation],
   );
+  // --- fin MODIFICADO ---
 
   const activeZ = useMemo(
     () => floorLevels.find((item) => item.level === selectedLevel)?.z ?? floorLevels[0].z,
@@ -77,6 +95,10 @@ export const SceneToolsHost = observer(({ sceneId = "main-scene" }: SceneToolsHo
   }, [selectedLevel, navigationState.toggles.floors, levelLookupReady]);
   const animatedZRef = useRef(activeZ);
 
+  // --- MODIFICADO: createSlicePlane ahora usa sectionCenterX/Y (Quito) ---
+  // Antes: x/y hardcodeados de Vancouver (-13704727.87..., 6321985.86...),
+  // completamente fuera de tu campus. Ahora comparte el mismo centro que
+  // el plano de Sections, para que ambas herramientas corten en tu edificio.
   const createSlicePlane = (z: number) =>
     new SlicePlane({
       heading: 51.76797514952818,
@@ -85,11 +107,12 @@ export const SceneToolsHost = observer(({ sceneId = "main-scene" }: SceneToolsHo
       height: 1000,
       position: {
         spatialReference: { latestWkid: 3857, wkid: 102100 },
-        x: -13704727.873766169,
-        y: 6321985.866549921,
+        x: sectionCenterX,
+        y: sectionCenterY,
         z,
       },
     });
+  // --- fin MODIFICADO ---
 
   const createSectionsSlicePlane = (heading = 0) =>
     new SlicePlane({
@@ -457,6 +480,44 @@ export const SceneToolsHost = observer(({ sceneId = "main-scene" }: SceneToolsHo
     }
   };
 
+  // --- NUEVO: consulta la elevación real del terreno una sola vez ---
+  useEffect(() => {
+    if (!sceneView) {
+      return;
+    }
+
+    let cancelled = false;
+
+    sceneView.when(() => {
+      if (cancelled) {
+        return;
+      }
+
+      const point = new Point({
+        x: sectionCenterX,
+        y: sectionCenterY,
+        spatialReference: { wkid: 102100 },
+      });
+
+      sceneView.map?.ground
+  ?.queryElevation(point)
+  .then((result: any) => {
+    console.log('[SceneTools] queryElevation SUCCESS ->', result?.geometry?.z, result);
+    if (!cancelled && result?.geometry?.z !== undefined) {
+      setGroundElevation(result.geometry.z);
+    }
+  })
+  .catch((err: any) => {
+    console.log('[SceneTools] queryElevation FAILED, usando respaldo 2850 ->', err);
+  });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sceneView]);
+  // --- fin NUEVO ---
+
   useEffect(() => {
     let cancelled = false;
 
@@ -541,6 +602,11 @@ export const SceneToolsHost = observer(({ sceneId = "main-scene" }: SceneToolsHo
 
       sliceAnalysis.excludedLayers = excludedLayers;
 
+      const layerSummary = view.map?.allLayers?.toArray()?.map(
+  (l: any) => `${l.title ?? "(sin título)"} | type=${l.type} | layerType=${l.layerType}`
+).join('\n');
+console.log('[SceneTools] CAPAS OPERATIVAS en la escena:\n' + layerSummary);
+
       if (navigationState.toggles.floors) {
         if (view.analyses.indexOf(sliceAnalysis) === -1) {
           view.analyses.add(sliceAnalysis);
@@ -585,8 +651,19 @@ export const SceneToolsHost = observer(({ sceneId = "main-scene" }: SceneToolsHo
         }
 
         const sectionsAnalysisView = await view.whenAnalysisView(sectionsSliceAnalysis);
-        sectionsAnalysisView.active = true;
-        sectionsAnalysisView.interactive = true;
+sectionsAnalysisView.active = true;
+sectionsAnalysisView.interactive = true;
+console.log('[SceneTools] Sections slice AGREGADO y activo', {
+  position: sectionsSliceAnalysis.shape?.position,
+  inAnalyses: view.analyses.indexOf(sectionsSliceAnalysis) !== -1,
+  analysisViewActive: sectionsAnalysisView.active,
+});
+
+        console.log('[SceneTools] Sections slice AGREGADO y activo', {
+          position: sectionsSliceAnalysis.shape?.position,
+          inAnalyses: view.analyses.indexOf(sectionsSliceAnalysis) !== -1,
+          analysisViewActive: sectionsAnalysisView.active,
+        });
 
         sectionsSliceShapeWatchHandleRef.current?.remove?.();
         // remove the lock-in, place initial position of the slice and if user moves it, they can re-center it.
@@ -630,6 +707,15 @@ export const SceneToolsHost = observer(({ sceneId = "main-scene" }: SceneToolsHo
   }, [sceneView, navigationState.toggles.sections]);
 
   useEffect(() => {
+    const sectionsSliceAnalysis = sectionsSliceAnalysisRef.current;
+    if (!sectionsSliceAnalysis) {
+      return;
+    }
+    const currentHeading = sectionsSliceAnalysis.shape?.heading ?? 0;
+    sectionsSliceAnalysis.shape = createSectionsSlicePlane(currentHeading);
+  }, [sectionCenterZ]);
+
+  useEffect(() => {
     if (!navigationState.toggles.floors) {
       return;
     }
@@ -654,6 +740,7 @@ export const SceneToolsHost = observer(({ sceneId = "main-scene" }: SceneToolsHo
       return;
     }
 
+    console.log('[SceneTools] animando plano de Floors', { startZ, endZ, selectedLevel, groundElevation });
     const startTime = performance.now();
 
     const easeInOutCubic = (t: number) =>

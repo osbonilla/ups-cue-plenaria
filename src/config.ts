@@ -92,7 +92,7 @@ export const orientedImageryConfig = {
 // públicamente, porque la app no tiene login interactivo contra ese portal.
 export const secondarySceneConfig = {
   label: "ESCENA 3D",
-  panelHeading: "Escena 3D externa",
+  panelHeading: "Escena 3D",
   portalUrl: "https://esrimarketing.maps.arcgis.com/",
   websceneItemId: "3b08094bf6194046b98bf55458300e15",
 };

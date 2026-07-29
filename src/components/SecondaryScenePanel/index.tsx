@@ -21,6 +21,7 @@ export const SecondaryScenePanel = observer(() => {
   const panelRef = useRef<any | null>(null);
   const viewRef = useRef<any | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [slides, setSlides] = useState<any[]>([]);
 
   // Cerrar con la "x" del calcite-panel = apagar el toggle.
   useEffect(() => {
@@ -59,8 +60,18 @@ export const SecondaryScenePanel = observer(() => {
 
     view
       .when(() => {
-        if (!cancelled) {
-          setStatus("ready");
+        if (cancelled) {
+          return;
+        }
+        setStatus("ready");
+        // Bookmarks de la escena externa: los "slides" autorados en el
+        // Scene Viewer viven en webscene.presentation.slides (el SDK no
+        // trae widget para esto; se renderizan como tira propia abajo).
+        try {
+          const slideItems = (webscene as any)?.presentation?.slides?.toArray?.() ?? [];
+          setSlides(slideItems);
+        } catch {
+          setSlides([]);
         }
       })
       .catch((error: any) => {
@@ -73,6 +84,7 @@ export const SecondaryScenePanel = observer(() => {
     return () => {
       cancelled = true;
       viewRef.current = null;
+      setSlides([]);
       try {
         view.destroy();
       } catch {
@@ -117,6 +129,36 @@ export const SecondaryScenePanel = observer(() => {
             <div className={styles.status}>
               No se pudo cargar la escena. Verifica que el ítem sea público y que
               el id/portal en config.ts sean correctos.
+            </div>
+          ) : null}
+          {slides.length > 0 ? (
+            <div className={styles.slidesStrip}>
+              {slides.map((slide: any, index: number) => (
+                <button
+                  key={slide?.id ?? index}
+                  type="button"
+                  className={styles.slideButton}
+                  title={slide?.title?.text ?? `Vista ${index + 1}`}
+                  onClick={() => {
+                    try {
+                      slide?.applyTo?.(viewRef.current);
+                    } catch {
+                      // Slide inválido: se ignora el clic.
+                    }
+                  }}
+                >
+                  {slide?.thumbnail?.url ? (
+                    <img
+                      className={styles.slideThumb}
+                      src={slide.thumbnail.url}
+                      alt={slide?.title?.text ?? ""}
+                    />
+                  ) : null}
+                  <span className={styles.slideTitle}>
+                    {slide?.title?.text ?? `Vista ${index + 1}`}
+                  </span>
+                </button>
+              ))}
             </div>
           ) : null}
         </div>

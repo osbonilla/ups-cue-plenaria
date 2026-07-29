@@ -57,3 +57,50 @@
 .closeButton:hover {
   background: rgba(0, 0, 0, 0.75);
 }
+
+.slidesStrip {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 9;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 10px;
+}
+
+.slideButton {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 2px;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+}
+
+.slideThumb {
+  width: 108px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 2px solid transparent;
+}
+
+.slideButton:hover .slideThumb {
+  border-color: #fff;
+}
+
+.slideTitle {
+  max-width: 112px;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

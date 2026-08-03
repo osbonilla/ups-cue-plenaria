@@ -1,6 +1,21 @@
-node_modules
-dist
+# Python
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Node
+node_modules/
+
+# Build
+dist/
+
+# macOS
 .DS_Store
+
+# Variables de entorno
 .env
 
+# Calcite
 /public/assets/calcite-components/*

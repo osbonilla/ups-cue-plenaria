@@ -10,8 +10,8 @@ export interface NavigationToggleState {
   imagery: boolean;
   basemap: boolean;
   scene2: boolean;
+  security: boolean;
 }
-
 type NavigationToggleKey = keyof NavigationToggleState;
 
 class NavigationState {
@@ -24,6 +24,7 @@ class NavigationState {
     imagery: false,
     basemap: false,
     scene2: false,
+    security: false, 
   };
   viewMode: LayoutMode = "scene-only";
 

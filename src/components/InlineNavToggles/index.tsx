@@ -107,6 +107,17 @@ export const InlineNavToggles: React.FC<InlineNavTogglesProps> = observer(({ slo
       </span>
       <button
         type="button"
+        className={`${styles.item} ${toggles.security ? styles.selected : ""}`}
+        onClick={() => navigationState.toggle("security")}
+        aria-pressed={toggles.security}
+      >
+        SEGURIDAD
+      </button>
+      <span className={styles.separator} aria-hidden="true">
+        |
+      </span>
+      <button
+        type="button"
         className={`${styles.item} ${toggles.basemap && !isMapOnly ? styles.selected : ""}`}
         onClick={() => navigationState.toggle("basemap")}
         aria-pressed={toggles.basemap && !isMapOnly}

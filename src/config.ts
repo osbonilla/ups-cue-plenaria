@@ -139,3 +139,30 @@ export const applicationId = 'J67XjhOQ7O45mV0u';
 export const mapillaryConfig = {
   accessToken: "MLY|27764881406485371|6107f680e3728551797c19097e433398",
 };
+
+export const simulatedCrimeConfig = {
+  title: "Incidentes de seguridad (simulado)",
+  center: { x: -8737327.184, y: -23116.927, spatialReferenceWkid: 102100 },
+  spreadRadius: 450,
+  count: 240,
+  defaultBufferRadius: 150,
+  minBufferRadius: 40,
+  maxBufferRadius: 500,
+  // Huella aprox. del edificio (en metros, relativa al centro): ningún incidente
+  // cae dentro de este rectángulo → los robos quedan en calles/exteriores.
+  // Ajusta halfWidth/halfHeight si el bloque se ve más grande/pequeño.
+  buildingFootprint: { halfWidth: 70, halfHeight: 55 },
+  categories: [
+    { tipo: "Hurto a persona", color: [227, 74, 51] },
+    { tipo: "Hurto a vehículo", color: [253, 141, 60] },
+    { tipo: "Robo a comercio", color: [43, 140, 190] },
+    { tipo: "Asalto", color: [136, 65, 157] },
+  ] as { tipo: string; color: [number, number, number] }[],
+};
+
+
+export const predictionConfig = {
+  baseUrl: "http://localhost:8000",
+  horizon: 6,      // meses a pronosticar
+  confidence: 90,  // nivel de confianza (%)
+};

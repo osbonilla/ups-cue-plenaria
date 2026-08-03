@@ -13,6 +13,7 @@ import { AssetsPanel } from "../AssetsPanel";
 import { FloorPicker } from "../FloorPicker";
 import { AnalysisPanel } from "../AnalysisPanel";
 import { ImageryPanel } from "../ImageryPanel";
+import { SecurityPanel } from "../SecurityPanel";
 import { BasemapPanel } from "../BasemapPanel";
 import styles from "./SceneToolsHost.module.css";
 import esriRequest from "@arcgis/core/request";
@@ -965,7 +966,7 @@ console.log('[SceneTools] Sections slice AGREGADO y activo', {
     if (mapView) setLayerVisibility(mapView);
   }, [sceneView, mapView, navigationState.toggles.imagery]);
 
-  if (!navigationState.toggles.assets && !navigationState.toggles.floors && !navigationState.toggles.sections && !navigationState.toggles.analysis && !navigationState.toggles.imagery && !navigationState.toggles.basemap) {
+   if (!navigationState.toggles.assets && !navigationState.toggles.floors && !navigationState.toggles.sections && !navigationState.toggles.analysis && !navigationState.toggles.imagery && !navigationState.toggles.basemap && !navigationState.toggles.security) {
     return null;
   }
 
@@ -989,8 +990,13 @@ console.log('[SceneTools] Sections slice AGREGADO y activo', {
         ) : null}
       </div>
 
-      {(navigationState.toggles.analysis || navigationState.toggles.imagery || navigationState.toggles.basemap) ? (
+      {(navigationState.toggles.analysis || navigationState.toggles.imagery || navigationState.toggles.basemap || navigationState.toggles.security) ? (
         <div className={styles.topRight}>
+          {navigationState.toggles.security ? (
+            <div className={styles.analysis}>
+              <SecurityPanel sceneId={sceneId}></SecurityPanel>
+            </div>
+          ) : null}
           {navigationState.toggles.analysis ? (
             <div className={styles.analysis}>
               <AnalysisPanel sceneId={sceneId}></AnalysisPanel>

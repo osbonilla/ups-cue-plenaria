@@ -8,6 +8,7 @@ import * as reactiveUtils from "@arcgis/core/core/reactiveUtils";
 import * as webMercatorUtils from "@arcgis/core/geometry/support/webMercatorUtils";
 import { assetLayerConfig, orientedImageryConfig } from "../../config";
 import state from "../../stores/state";
+import assistantStore from "../../stores/assistant";
 import navigationState from "../../stores/navigation";
 import { AssetsPanel } from "../AssetsPanel";
 import { FloorPicker } from "../FloorPicker";
@@ -15,6 +16,7 @@ import { AnalysisPanel } from "../AnalysisPanel";
 import { ImageryPanel } from "../ImageryPanel";
 import { SecurityPanel } from "../SecurityPanel";
 import { BasemapPanel } from "../BasemapPanel";
+import { FocusAreaButton } from "../FocusAreaButton";
 import styles from "./SceneToolsHost.module.css";
 import esriRequest from "@arcgis/core/request";
 import { fromJSON } from "@arcgis/core/renderers/support/jsonUtils";
@@ -839,6 +841,19 @@ console.log('[SceneTools] Sections slice AGREGADO y activo', {
       restoreAllFilters();
     };
   }, [sceneView]);
+
+  // Comandos del asistente de IA relacionados con pisos.
+  useEffect(() => {
+    const cmd = assistantStore.command;
+    if (!cmd || cmd.tool !== "ir_a_piso") return;
+    const nivel = Number(cmd.args?.nivel);
+    if (nivel >= 1 && nivel <= 4) {
+      if (!navigationState.toggles.floors) {
+        navigationState.toggle("floors"); // enciende el modo Pisos si estaba apagado
+      }
+      setSelectedLevel(nivel);
+    }
+  }, [assistantStore.command?.id]);
 
   useEffect(() => {
     let cancelled = false;

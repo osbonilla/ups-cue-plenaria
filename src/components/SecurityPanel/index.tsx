@@ -14,6 +14,7 @@ import { createSimulatedCrimeLayer } from "../../utils/simulatedCrime";
 import { createHotspotLayer } from "../../utils/hotspots";
 import { buildForecastChartHTML } from "../../utils/forecastChart";
 import styles from "./SecurityPanel.module.css";
+import assistantStore from "../../stores/assistant";
 
 import "@esri/calcite-components/components/calcite-panel";
 
@@ -316,6 +317,21 @@ export const SecurityPanel: React.FC<SecurityPanelProps> = observer(({ sceneId =
       crimeLayer.visible = true;
     }
   }, [showHotspots, sceneView, ready]);
+
+  // Ejecuta comandos que llegan del asistente de IA.
+  useEffect(() => {
+    const cmd = assistantStore.command;
+    if (!cmd) return;
+
+    if (cmd.tool === "mostrar_hotspots") {
+      setShowHotspots(Boolean(cmd.args?.visible));
+    } else if (cmd.tool === "predecir_punto") {
+      setForecastMode(Boolean(cmd.args?.activo));
+    } else if (cmd.tool === "consultar_zona") {
+      // La zona ya se consulta sola; forzamos re-lectura moviendo el buffer actual.
+      // (opcional) aquí podrías abrir/resaltar el panel.
+    }
+  }, [assistantStore.command?.id]);
 
   // --- Predicción: clic en la escena → /forecast → panel inferior izquierdo ---
   useEffect(() => {

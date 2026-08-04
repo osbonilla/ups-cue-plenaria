@@ -1,0 +1,63 @@
+.group {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 45;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.fab {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 24px;
+  background: var(--calcite-color-foreground-1, #fff);
+  color: var(--calcite-color-text-1, #151515);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.28);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.fab:hover:not(:disabled) {
+  background: var(--calcite-color-foreground-2, #f3f3f3);
+}
+.fab.active {
+  background: #00c8ff;
+  color: #fff;
+}
+.fab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.recenter {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: var(--calcite-color-foreground-1, #fff);
+  color: var(--calcite-color-text-1, #151515);
+  font-size: 1.1rem;
+  cursor: pointer;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.28);
+}
+.recenter:hover:not(:disabled) {
+  background: #00c8ff;
+  color: #fff;
+}
+.recenter:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.angleLabel {
+  background: #fff;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.28);
+}

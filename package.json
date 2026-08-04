@@ -23,7 +23,8 @@
     "postbuild": "cpx \"node_modules/@esri/calcite-components/dist/calcite/assets/**/*\" dist/assets"
   },
   "dependencies": {
-    "@arcgis/map-components": "^5.0.15",
+    "@arcgis/core": "5.1",
+    "@arcgis/map-components": "5.1",
     "@esri/calcite-components": "^5.0.2",
     "mapillary-js": "^4.1.2",
     "mobx": "^6.13.7",

@@ -166,3 +166,11 @@ export const predictionConfig = {
   horizon: 6,      // meses a pronosticar
   confidence: 90,  // nivel de confianza (%)
 };
+
+
+// Centro del BIM para el Focus Area (ajústalo con el clic de calibración).
+export const focusAreaConfig = {
+  centerX: -8737327.184,
+  centerY: -23116.927,
+  halfSize: 240, // medio-lado del área enfocada (m)
+};

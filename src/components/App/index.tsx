@@ -1,17 +1,3 @@
-/* Copyright 2025 Esri
- *
- * Licensed under the Apache License Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 import React from 'react';
 import { observer } from 'mobx-react-lite';
 import { ErrorAlert } from '../ErrorAlert';
@@ -19,10 +5,15 @@ import { Identity } from '../Identity';
 import { SceneView } from '../SceneView'
 import { MapView } from '../MapView';
 import { Navigation } from '../Navigation';
+import { AssistantPanel } from '../AssistantPanel';
+import { FocusAreaButton } from '../FocusAreaButton';
 import './App.css';
 import { SceneToolsHost } from '../SceneToolsHost';
 import navigationState from '../../stores/navigation';
 import { ViewSync } from '../ViewSync';
+import { AssistantExecutor } from '../AssistantExecutor';
+
+        
 
 import "@esri/calcite-components/components/calcite-shell";
 import { Bookmarks } from '../Bookmarks';
@@ -55,12 +46,17 @@ const App = observer(function App() {
           <MapView mapId={mapId} hidden={isSceneOnly}></MapView>
         </div>
         <SceneToolsHost sceneId={sceneId}></SceneToolsHost>
+        <FocusAreaButton></FocusAreaButton>
+        <AssistantPanel></AssistantPanel>
       </div>
       <Bookmarks></Bookmarks>
       <SecondaryScenePanel></SecondaryScenePanel>
       <Identity></Identity>
       <ErrorAlert></ErrorAlert>
-    </calcite-shell>  
+      <FocusAreaButton></FocusAreaButton>
+      <AssistantPanel></AssistantPanel>
+      <AssistantExecutor></AssistantExecutor>
+    </calcite-shell>
     </>
   );
 });
